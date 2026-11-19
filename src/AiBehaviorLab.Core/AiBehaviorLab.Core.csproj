@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Godot 4 C#에서 참조할 수 있게 net8.0 유지 -->
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>AiBehaviorLab</RootNamespace>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AiBehaviorLab.Core/AiBehaviorLab.Core.csproj" />
+    <Project Path="src/AiBehaviorLab.Runner/AiBehaviorLab.Runner.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AiBehaviorLab.Tests/AiBehaviorLab.Tests.csproj" />
+  </Folder>
+</Solution>

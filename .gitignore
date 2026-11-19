@@ -1,0 +1,11 @@
+bin/
+obj/
+.vs/
+*.user
+# 로컬 전용
+STATUS.md
+.review/
+code-review/
+.qa/
+QA-LOG.md
+PERF-LOG.md
