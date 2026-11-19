@@ -201,7 +201,7 @@ public class FsmBrainTests
         Assert.NotNull(distanceAtSwing); // 후딜에 반격은 한다
         Assert.True(distanceAtSwing <= 1.5f + rules.Boss.BodyRadius, $"사거리 밖에서 휘둘렀다: {distanceAtSwing}m");
         sim.Steps(12); // 선딜 9틱 + 판정
-        Assert.Equal(595, sim.Boss.Hp); // 휘두른 평타는 맞는다
+        Assert.Equal(240, sim.Boss.Hp); // 휘두른 평타는 맞는다
     }
 
     [Fact]

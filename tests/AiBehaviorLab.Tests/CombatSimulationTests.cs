@@ -18,11 +18,11 @@ public class CombatSimulationTests
         var sim = StartMatch(rules, ScriptedBrain.At(0, Intent.Use(ActionId.LightAttack, Up)), ScriptedBrain.Idle());
 
         sim.Steps(9); // 선딜 0.3초 = 9틱
-        Assert.Equal(600, sim.Boss.Hp);
+        Assert.Equal(250, sim.Boss.Hp);
 
         sim.Step();
-        Assert.Equal(595, sim.Boss.Hp);
-        Assert.Contains(sim.Events, e => e is { Kind: CombatEventKind.Hit, Source: Side.Player, Value: 5 });
+        Assert.Equal(240, sim.Boss.Hp);
+        Assert.Contains(sim.Events, e => e is { Kind: CombatEventKind.Hit, Source: Side.Player, Value: 10 });
     }
 
     [Fact]
@@ -33,7 +33,7 @@ public class CombatSimulationTests
         var sim = StartMatch(rules, ScriptedBrain.At(0, Intent.Use(ActionId.LightAttack, Up)), ScriptedBrain.Idle());
 
         sim.Steps(30);
-        Assert.Equal(600, sim.Boss.Hp);
+        Assert.Equal(250, sim.Boss.Hp);
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public class CombatSimulationTests
         Assert.Equal(100, sim.Player.Hp);
 
         sim.Step();
-        Assert.Equal(70, sim.Player.Hp);
+        Assert.Equal(79, sim.Player.Hp);
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public class CombatSimulationTests
             ScriptedBrain.At(0, Intent.Use(ActionId.BossSlam, Up)));
 
         sim.Steps(30);
-        Assert.Equal(70, sim.Player.Hp);
+        Assert.Equal(79, sim.Player.Hp);
     }
 
     [Fact]
@@ -100,12 +100,12 @@ public class CombatSimulationTests
             ScriptedBrain.At(0, Intent.Use(ActionId.BossSlam, Up)));
 
         sim.Steps(25 + 30); // 틱 25 시작, 선딜 30틱 → 틱 55에 회복
-        Assert.Equal(70, sim.Player.Hp);
+        Assert.Equal(79, sim.Player.Hp);
         Assert.Equal(2, sim.Player.Potions);
 
         sim.Step();
         Assert.Equal(100, sim.Player.Hp);
-        Assert.Contains(sim.Events, e => e is { Kind: CombatEventKind.Healed, Value: 30 });
+        Assert.Contains(sim.Events, e => e is { Kind: CombatEventKind.Healed, Value: 21 });
     }
 
     [Fact]
@@ -137,12 +137,12 @@ public class CombatSimulationTests
         var sim = StartMatch(rules, ScriptedBrain.Idle(), ScriptedBrain.At(0, Intent.Use(ActionId.BossSweepDouble, Up)));
 
         sim.Steps(60);
-        Assert.Equal(50, sim.Player.Hp);
+        Assert.Equal(64, sim.Player.Hp);
         Assert.Equal(2, sim.Events.Count(e => e is { Kind: CombatEventKind.Hit, Source: Side.Boss }));
     }
 
     [Theory]
-    [InlineData(ActionId.BossShockwave, 80)]
+    [InlineData(ActionId.BossShockwave, 86)]
     [InlineData(ActionId.BossShockwaveRing, 100)] // 안쪽 2.5m 안에 몸 전체가 있으면 안전
     public void Shockwave_RingHasSafeCenter(ActionId pattern, int expectedHp)
     {
@@ -163,7 +163,7 @@ public class CombatSimulationTests
         Assert.Equal(Vector2.Zero, sim.Boss.Position);
 
         sim.Steps(20);
-        Assert.Equal(80, sim.Player.Hp);
+        Assert.Equal(86, sim.Player.Hp);
         Assert.True(sim.Boss.Position.Y > 7f, $"보스가 돌진하지 않았다: {sim.Boss.Position}");
     }
 
