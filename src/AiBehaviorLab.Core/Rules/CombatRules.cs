@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Numerics;
 
 namespace AiBehaviorLab.Rules;
@@ -12,7 +13,14 @@ public sealed record CombatRules
     public required Vector2 BossStart { get; init; }
     public required CombatantStats Player { get; init; }
     public required CombatantStats Boss { get; init; }
-    public required IReadOnlyDictionary<ActionId, ActionDefinition> Actions { get; init; }
+    private readonly FrozenDictionary<ActionId, ActionDefinition> _actions = FrozenDictionary<ActionId, ActionDefinition>.Empty;
+
+    /// <summary>받은 사전을 불변 사본으로 바꿔 둔다. 여러 판과 Brain이 같은 규칙을 공유해도 안전하다.</summary>
+    public required IReadOnlyDictionary<ActionId, ActionDefinition> Actions
+    {
+        get => _actions;
+        init => _actions = value.ToFrozenDictionary();
+    }
 
     public CombatantStats StatsOf(Side side) => side == Side.Player ? Player : Boss;
 
@@ -54,8 +62,14 @@ public sealed record CombatRules
                     throw new InvalidOperationException($"{id}: 선딜이 음수");
                 if (step.Damage > 0 && step.Shape is null)
                     throw new InvalidOperationException($"{id}: 피해가 있는데 범위가 없다");
-                if (step.IsMoving && step.Damage > 0 && step.Shape is not LineShape)
-                    throw new InvalidOperationException($"{id}: 이동형 공격 범위는 LineShape");
+                if (step.IsMoving && step.Damage > 0)
+                {
+                    // 예고 = 판정: 직선은 이동 거리 + 폭/2(끝에서 몸이 닿는 곳)까지 덮어야 한다.
+                    if (step.Shape is not LineShape line)
+                        throw new InvalidOperationException($"{id}: 이동형 공격 범위는 LineShape");
+                    if (line.Length < step.MoveDistance + line.Width * 0.5f - 1e-4f)
+                        throw new InvalidOperationException($"{id}: 직선 길이가 이동 거리 + 폭/2보다 짧다");
+                }
             }
         }
     }

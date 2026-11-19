@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Numerics;
 
 namespace AiBehaviorLab.Rules;
@@ -41,7 +42,7 @@ public static class DefaultRules
                 T(1.0)),
 
             new(ActionId.BossCharge, Side.Boss,
-                [new ActionStep(T(0.8), T(0.4)) { Shape = new LineShape(8f, 2f), Damage = 20, MoveDistance = 8f }],
+                [new ActionStep(T(0.8), T(0.4)) { Shape = new LineShape(9f, 2f), Damage = 20, MoveDistance = 8f }],
                 T(1.5)),
 
             new(ActionId.BossShockwave, Side.Boss,
@@ -62,7 +63,7 @@ public static class DefaultRules
 
             new(ActionId.BossChargeShort, Side.Boss,
                 [
-                    new ActionStep(T(0.8), T(0.2)) { Shape = new LineShape(4f, 2f), Damage = 20, MoveDistance = 4f },
+                    new ActionStep(T(0.8), T(0.2)) { Shape = new LineShape(5f, 2f), Damage = 20, MoveDistance = 4f },
                     new ActionStep(T(0.5), strike)
                     {
                         Shape = new SectorShape(3.5f, 120f), Damage = 25, Aim = AimMode.TowardOpponent,
@@ -86,7 +87,7 @@ public static class DefaultRules
                 MaxStamina: 100f, StaminaRegenPerSecond: 20f, Potions: 3),
             Boss = new CombatantStats(MaxHp: 600, MoveSpeed: 3f, BodyRadius: 1f,
                 MaxStamina: 0f, StaminaRegenPerSecond: 0f, Potions: 0),
-            Actions = actions.ToDictionary(a => a.Id),
+            Actions = actions.ToFrozenDictionary(a => a.Id),
         };
         rules.Validate();
         return rules;

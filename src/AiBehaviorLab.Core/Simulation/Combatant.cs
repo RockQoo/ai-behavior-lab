@@ -58,8 +58,13 @@ internal sealed class Combatant
     public RunningAction? Action { get; set; }
     public CombatStats Statistics { get; } = new();
 
-    // 한 틱 동안만 쓰는 값(Advance에서 정하고 판정·충돌에서 읽는다)
+    // 한 틱 동안만 쓰는 값(ProcessActive에서 정하고 판정·충돌에서 읽는다)
     public bool IsInvulnerable { get; set; }
+
+    /// <summary>다음 틱 판정 때 무적인가. 관찰에는 이 값을 보여 준다(판정과 같은 기준).</summary>
+    public bool WillBeInvulnerable =>
+        Action is { Phase: ActionPhase.Active } action && action.PhaseElapsed < action.Step.InvulnerableTicks;
+
     public bool IsDashing { get; set; }
     public ActionStep? StrikeStep { get; set; }
 
@@ -67,5 +72,5 @@ internal sealed class Combatant
 
     public CombatantView ToView() => new(
         Side, Position, Facing, Stats.BodyRadius, Hp, Stats.MaxHp, Stamina, Potions,
-        IsInvulnerable, Action?.ToView());
+        WillBeInvulnerable, Action?.ToView());
 }

@@ -284,4 +284,90 @@ public class CombatSimulationTests
             Assert.InRange(result.Ticks, 1, rules.TimeLimitTicks);
         }
     }
+
+    // ── Codex 리뷰 반영 ──
+
+    [Fact]
+    public void Charge_TelegraphEqualsHit() // R3
+    {
+        // 보스 (0,-4)가 위로 8m 돌진. 가만히 있는 플레이어는 예고 범위 안일 때만, 그리고 반드시 맞아야 한다.
+        // 격자는 경계값에 딱 걸리지 않게 반 칸 어긋나게 잡는다.
+        var bossStart = new Vector2(0f, -4f);
+        int checkedCount = 0;
+        for (float x = -1.95f; x <= 1.95f; x += 0.1f)
+        {
+            for (float y = -2.55f; y <= 5.85f; y += 0.2f)
+            {
+                var player = new Vector2(x, y);
+                if (Vector2.Distance(player, bossStart) < 1.45f)
+                    continue;
+
+                var rules = MakeRules(player, bossStart);
+                var sim = StartMatch(rules, ScriptedBrain.Idle(),
+                    ScriptedBrain.At(0, Intent.Use(ActionId.BossCharge, Up)));
+                sim.Steps(5);
+                bool threatened = Telegraph.Threatens(rules, sim.Boss.Action!.Value, player, rules.Player.BodyRadius);
+                sim.Steps(40);
+                bool hit = sim.Player.Hp < rules.Player.MaxHp;
+
+                Assert.True(threatened == hit, $"플레이어 {player}: 예고 {threatened}, 피격 {hit}");
+                checkedCount++;
+            }
+        }
+        Assert.True(checkedCount > 1000);
+    }
+
+    [Fact]
+    public void Bodies_DoNotOverlapAtArenaEdge() // R4
+    {
+        var rules = MakeRules(player: new Vector2(0f, 9.5f), boss: new Vector2(0f, 9f));
+        var sim = StartMatch(rules, ScriptedBrain.Idle(), ScriptedBrain.Idle());
+
+        sim.Steps(1);
+        float distance = Vector2.Distance(sim.Player.Position, sim.Boss.Position);
+        Assert.True(distance >= rules.Player.BodyRadius + rules.Boss.BodyRadius - 1e-4f, $"거리 {distance}");
+        Assert.True(sim.Player.Position.Length() <= rules.ArenaRadius - rules.Player.BodyRadius + 1e-4f);
+        Assert.True(sim.Boss.Position.Length() <= rules.ArenaRadius - rules.Boss.BodyRadius + 1e-4f);
+    }
+
+    [Fact]
+    public void Stamina_NoRegenOnActionsLastTick() // R5
+    {
+        var rules = DefaultRules.V0();
+        var sim = StartMatch(rules, ScriptedBrain.At(0, Intent.Use(ActionId.LightAttack, Up)), ScriptedBrain.Idle());
+
+        sim.Steps(24); // 선딜 9 + 판정 3 + 후딜 12
+        Assert.Null(sim.Player.Action);
+        Assert.Equal(90f, sim.Player.Stamina);
+
+        sim.Step();
+        Assert.Equal(90f + 20f / 30f, sim.Player.Stamina, 4);
+    }
+
+    [Fact]
+    public void Observation_InvulnerabilityMatchesNextTick() // R6
+    {
+        var rules = DefaultRules.V0();
+        var sim = StartMatch(rules, ScriptedBrain.At(0, Intent.Use(ActionId.Roll, Right)), ScriptedBrain.Idle());
+
+        sim.Steps(7); // 무적은 틱 0~7
+        Assert.True(sim.Player.IsInvulnerable);
+
+        sim.Step();
+        Assert.False(sim.Player.IsInvulnerable);
+    }
+
+    [Fact]
+    public void Rules_ActionsCannotBeModified() // R2
+    {
+        var rules = DefaultRules.V0();
+        var asDictionary = Assert.IsAssignableFrom<IDictionary<ActionId, ActionDefinition>>(rules.Actions);
+        Assert.Throws<NotSupportedException>(() => asDictionary.Remove(ActionId.Roll));
+
+        // 밖에서 넘긴 사전을 나중에 바꿔도 규칙은 그대로다.
+        var source = rules.Actions.ToDictionary(p => p.Key, p => p.Value);
+        var copy = rules with { Actions = source };
+        source.Remove(ActionId.Roll);
+        Assert.True(copy.Actions.ContainsKey(ActionId.Roll));
+    }
 }

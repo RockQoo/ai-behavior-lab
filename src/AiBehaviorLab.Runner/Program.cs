@@ -33,9 +33,35 @@ bool deterministic = first.Events.SequenceEqual(second.Events)
                      && first.PlayerHp == second.PlayerHp
                      && first.BossHp == second.BossHp;
 
+// 판마다 사건 기록을 바로 패턴별 횟수로 줄이고 기록은 버린다(수만 판에서도 메모리가 판 수에 비례해 크게 늘지 않게).
+var actionIds = Enum.GetValues<ActionId>();
+var countedKinds = new[] { CombatEventKind.ActionStarted, CombatEventKind.Hit, CombatEventKind.Dodged };
 var results = new MatchResult[options.Matches];
+var bossPatternCounts = new long[actionIds.Length, countedKinds.Length];
 var stopwatch = Stopwatch.StartNew();
-Parallel.For(0, options.Matches, i => results[i] = RunOne(options.Seed + (ulong)i, recordEvents: true));
+Parallel.For(0, options.Matches,
+    () => new long[actionIds.Length, countedKinds.Length],
+    (i, _, local) =>
+    {
+        var result = RunOne(options.Seed + (ulong)i, recordEvents: true);
+        foreach (var e in result.Events)
+        {
+            int kind = Array.IndexOf(countedKinds, e.Kind);
+            if (e.Source == Side.Boss && e.Action is { } action && kind >= 0)
+                local[(int)action, kind]++;
+        }
+        results[i] = result with { Events = [] };
+        return local;
+    },
+    local =>
+    {
+        lock (bossPatternCounts)
+        {
+            for (int a = 0; a < actionIds.Length; a++)
+                for (int k = 0; k < countedKinds.Length; k++)
+                    bossPatternCounts[a, k] += local[a, k];
+        }
+    });
 stopwatch.Stop();
 
 long totalTicks = results.Sum(r => (long)r.Ticks);
@@ -54,11 +80,13 @@ Console.WriteLine($"평균 플레이어 회피 {results.Average(r => r.Player.Do
 Console.WriteLine($"평균 조작 실수     {results.Average(r => r.Player.Mistakes):F1}회");
 Console.WriteLine();
 Console.WriteLine("보스 패턴별 (판당 평균)   사용   명중   회피");
-var bossEvents = results.SelectMany(r => r.Events).Where(e => e.Source == Side.Boss && e.Action is not null).ToList();
-foreach (var group in bossEvents.GroupBy(e => e.Action!.Value).OrderBy(g => g.Key))
+foreach (var action in actionIds)
 {
-    double Per(CombatEventKind kind) => (double)group.Count(e => e.Kind == kind) / options.Matches;
-    Console.WriteLine($"  {group.Key,-20} {Per(CombatEventKind.ActionStarted),5:F1}  {Per(CombatEventKind.Hit),5:F1}  {Per(CombatEventKind.Dodged),5:F1}");
+    int a = (int)action;
+    if (bossPatternCounts[a, 0] == 0)
+        continue;
+    double Per(int kind) => (double)bossPatternCounts[a, kind] / options.Matches;
+    Console.WriteLine($"  {action,-20} {Per(0),5:F1}  {Per(1),5:F1}  {Per(2),5:F1}");
 }
 Console.WriteLine();
 Console.WriteLine($"처리 시간 {seconds:F2}초, {options.Matches / seconds:F0}판/초, {totalTicks / seconds / 1_000_000:F2}M틱/초");

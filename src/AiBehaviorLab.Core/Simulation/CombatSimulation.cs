@@ -103,14 +103,12 @@ public sealed class CombatSimulation
         ResolveStrike(_player, _boss);
         ResolveStrike(_boss, _player);
 
-        // 5. 몸 겹침, 경계, 국면 시간 진행, 스태미나.
-        Separate();
-        ClampToArena(_player);
-        ClampToArena(_boss);
-        AdvanceTimer(_player, _boss.Position);
-        AdvanceTimer(_boss, _player.Position);
+        // 5. 몸 겹침과 경계, 스태미나(이번 틱에 행동하지 않았을 때만), 국면 시간 진행.
+        ResolveBodies();
         RegenStamina(_player);
         RegenStamina(_boss);
+        AdvanceTimer(_player, _boss.Position);
+        AdvanceTimer(_boss, _player.Position);
 
         Tick++;
 
@@ -219,11 +217,7 @@ public sealed class CombatSimulation
         if (step is null || action is null)
             return;
 
-        bool overlaps = step.IsMoving
-            ? Vector2.Distance(attacker.Position, defender.Position)
-                <= ((LineShape)step.Shape!).Width * 0.5f + defender.Stats.BodyRadius
-            : step.Shape!.Hits(action.AimOrigin, action.AimDirection, defender.Position, defender.Stats.BodyRadius);
-        if (!overlaps)
+        if (!StrikeOverlaps(attacker, action, step, defender))
             return;
 
         // 한 단계는 한 번만 판정한다. 무적에 막혀도 그 단계는 끝난다.
@@ -243,19 +237,53 @@ public sealed class CombatSimulation
         Log(CombatEventKind.Hit, attacker.Side, action.Definition.Id, damage);
     }
 
-    /// <summary>이동형 행동 중이 아니면 몸이 겹치지 않게 플레이어를 밀어낸다.</summary>
-    private void Separate()
+    /// <summary>
+    /// 공격 범위가 상대 몸과 겹치는가. 예고(Telegraph)와 같은 모양을 쓴다.
+    /// 이동형(돌진)은 같은 직선 범위 중에서 이번 틱에 몸이 지나간 구간(앞뒤로 폭/2 + 상대 몸)만 판정한다.
+    /// 그래서 가만히 있는 상대는 예고 범위 안일 때만, 그리고 반드시 한 번 맞는다.
+    /// </summary>
+    private static bool StrikeOverlaps(Combatant attacker, RunningAction action, ActionStep step, Combatant defender)
     {
+        var shape = step.Shape!;
+        float radius = defender.Stats.BodyRadius;
+        if (!shape.Hits(action.AimOrigin, action.AimDirection, defender.Position, radius))
+            return false;
+        if (!step.IsMoving)
+            return true;
+
+        float halfWidth = ((LineShape)shape).Width * 0.5f;
+        float travelled = Vector2.Dot(attacker.Position - action.AimOrigin, action.AimDirection);
+        float previous = travelled - step.MoveDistance / step.ActiveTicks;
+        float along = Vector2.Dot(defender.Position - action.AimOrigin, action.AimDirection);
+        return along >= previous - halfWidth - radius && along <= travelled + halfWidth + radius;
+    }
+
+    /// <summary>
+    /// 몸 겹침과 경기장 경계를 함께 맞춘다. 이동형 행동 중이면 겹침은 허용한다.
+    /// 플레이어를 먼저 밀어내고, 벽 때문에 다 못 밀면 남은 만큼 보스를 민다.
+    /// </summary>
+    private void ResolveBodies()
+    {
+        ClampToArena(_boss);
+        ClampToArena(_player);
         if (_player.IsDashing || _boss.IsDashing)
             return;
 
-        var delta = _player.Position - _boss.Position;
         float minDistance = _player.Stats.BodyRadius + _boss.Stats.BodyRadius;
+        var delta = _player.Position - _boss.Position;
         if (delta.LengthSquared() >= minDistance * minDistance)
             return;
 
         var away = VectorMath.NormalizeOr(delta, -_boss.Facing);
         _player.Position = _boss.Position + away * minDistance;
+        ClampToArena(_player);
+
+        delta = _boss.Position - _player.Position;
+        if (delta.LengthSquared() < minDistance * minDistance)
+        {
+            _boss.Position = _player.Position + VectorMath.NormalizeOr(delta, -away) * minDistance;
+            ClampToArena(_boss);
+        }
     }
 
     private void ClampToArena(Combatant self)
