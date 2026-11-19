@@ -73,6 +73,19 @@ public sealed class CombatSimulation
 
     public IReadOnlyList<CombatEvent> Events => _events ?? (IReadOnlyList<CombatEvent>)Array.Empty<CombatEvent>();
 
+    /// <summary>
+    /// 지금 상태의 해시(FNV-1a 64비트). 실수는 비트 그대로 넣으므로 아주 작은 차이도 잡는다.
+    /// 리플레이 검증에서 다시 돌린 결과와 비교한다.
+    /// </summary>
+    public ulong ComputeStateHash()
+    {
+        var hash = new StateHasher();
+        hash.Add(Tick);
+        _player.AddTo(ref hash);
+        _boss.AddTo(ref hash);
+        return hash.Value;
+    }
+
     public MatchResult Run()
     {
         while (!IsOver)

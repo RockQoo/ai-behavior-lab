@@ -2,6 +2,7 @@
   "name": "ai-behavior-lab",
   "commands": [
     { "name": "test", "cmd": "dotnet test AiBehaviorLab.slnx --nologo", "summary": "(통과|Passed):\\s+\\d+" },
-    { "name": "runner", "cmd": "dotnet run --project src/AiBehaviorLab.Runner -c Release -- --matches 200 --seed 1" }
+    { "name": "runner", "cmd": "dotnet run --project src/AiBehaviorLab.Runner -c Release -- --matches 200 --seed 1" },
+    { "name": "viewer-build", "cmd": "dotnet build viewer/AiBehaviorLabViewer.csproj --nologo" }
   ]
 }

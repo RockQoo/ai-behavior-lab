@@ -18,6 +18,8 @@
 - 시간은 내부에서 **틱**(정수)으로 다룬다. 초 단위 값은 `CombatRules.ToTicks`로 바꾼다.
 - Brain은 `Observation`만 보고 `Intent`만 낸다. 시뮬레이션 상태를 직접 읽거나 바꾸지 않는다.
 - 예고 범위 = 판정 범위. 조준은 단계의 선딜 시작 때 고정한다(공정성).
+- 리플레이는 상태 기록 방식이다(`Replay/`). 형식을 바꾸면 `ReplayFile.CurrentFormatVersion`을 올린다. 새 Brain은 `ReplayCatalog`에 이름으로 등록해야 리플레이 검증이 된다.
+- 관전 화면(`viewer/`)은 그리기만 한다. 규칙 계산은 Core에서 하고, 화면용 값(범위 모양 등)은 리플레이 프레임에 담는다. 관전·디버그 도형은 코드로 그려도 된다.
 - 주석과 문서는 한국어.
 - 단계가 끝나면 Codex 리뷰(`review` 스킬) → 동의한 지적 수정. push는 사용자 승인 후 리뷰 → QA 순서로.
 
@@ -26,4 +28,9 @@
 ```powershell
 dotnet test AiBehaviorLab.slnx
 dotnet run --project src/AiBehaviorLab.Runner -c Release -- --matches 2000 --seed 1 --limits casual
+dotnet build viewer/AiBehaviorLabViewer.csproj
+# 화면 확인(창이 잠깐 뜬다): Godot을 직접 실행해 스크린샷을 남기고 종료
+<godot>_console.exe --path viewer -- --seed 7 --frame 805 --verify 1 --screenshot <png>
 ```
+
+Godot는 winget으로 설치되어 PATH에 없을 수 있다. `viewer/run.ps1`의 찾는 순서를 참고한다.

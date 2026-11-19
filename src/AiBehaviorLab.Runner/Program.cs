@@ -6,10 +6,17 @@ using AiBehaviorLab.Simulation;
 
 Console.OutputEncoding = Encoding.UTF8;
 
+if (args.Length > 0 && args[0] == "replay")
+    return ReplayCommands.Record(args[1..]);
+if (args.Length > 0 && args[0] == "verify")
+    return ReplayCommands.Verify(args[1..]);
+
 if (!RunnerOptions.TryParse(args, out var options, out string? error))
 {
     Console.Error.WriteLine(error);
     Console.Error.WriteLine("사용법: --matches <판 수> --seed <시드> --limits none|casual|expert");
+    Console.Error.WriteLine("        replay --seed <시드> --limits <한계> [--out <파일>]");
+    Console.Error.WriteLine("        verify <리플레이 파일>");
     return 2;
 }
 
@@ -141,7 +148,7 @@ internal sealed record RunnerOptions(int Matches, ulong Seed, HumanLimits Limits
         return true;
     }
 
-    private static HumanLimits? LimitsByName(string name) => name switch
+    internal static HumanLimits? LimitsByName(string name) => name switch
     {
         "none" => HumanLimits.None,
         "casual" => HumanLimits.Casual,

@@ -9,3 +9,6 @@ code-review/
 .qa/
 QA-LOG.md
 PERF-LOG.md
+# 리플레이 결과, Godot 생성 폴더
+replays/
+viewer/.godot/

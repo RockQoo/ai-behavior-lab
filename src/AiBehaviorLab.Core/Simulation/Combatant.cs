@@ -70,6 +70,29 @@ internal sealed class Combatant
 
     public bool IsAlive => Hp > 0;
 
+    public void AddTo(ref StateHasher hash)
+    {
+        hash.Add(Position);
+        hash.Add(Facing);
+        hash.Add(Hp);
+        hash.Add(Stamina);
+        hash.Add(Potions);
+        if (Action is { } action)
+        {
+            hash.Add((int)action.Definition.Id);
+            hash.Add(action.StepIndex);
+            hash.Add((int)action.Phase);
+            hash.Add(action.PhaseElapsed);
+            hash.Add(action.AimOrigin);
+            hash.Add(action.AimDirection);
+            hash.Add(action.StepResolved ? 1 : 0);
+        }
+        else
+        {
+            hash.Add(-1);
+        }
+    }
+
     public CombatantView ToView() => new(
         Side, Position, Facing, Stats.BodyRadius, Hp, Stats.MaxHp, Stamina, Potions,
         WillBeInvulnerable, Action?.ToView());
