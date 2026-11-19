@@ -72,6 +72,38 @@ public class ReplayTests
     }
 
     [Fact]
+    public void MissingMiddleFrame_IsRejected() // Codex 리뷰 R1
+    {
+        var replay = ReplayRecorder.Record(Spec(3));
+        var frames = replay.Frames.ToList();
+        frames.RemoveAt(50);
+        var broken = replay with { Frames = frames };
+
+        var verification = ReplayVerifier.Verify(broken);
+        Assert.False(verification.Matches);
+        Assert.NotNull(verification.Problem);
+        Assert.Throws<InvalidDataException>(() => ReplayFile.FromJson(broken.ToJson()));
+    }
+
+    [Fact]
+    public void OnlyLastFrame_IsRejected() // Codex 리뷰 R1: 마지막 프레임만 남겨도 통과하면 안 된다
+    {
+        var replay = ReplayRecorder.Record(Spec(3));
+        var broken = replay with { Frames = [replay.Frames[^1]] };
+
+        Assert.False(ReplayVerifier.Verify(broken).Matches);
+    }
+
+    [Fact]
+    public void FromJson_RejectsMissingValues()
+    {
+        var replay = ReplayRecorder.Record(Spec(3));
+        string json = replay.ToJson().Replace("\"Frames\":[", "\"Frames\":[null,");
+
+        Assert.Throws<InvalidDataException>(() => ReplayFile.FromJson(json));
+    }
+
+    [Fact]
     public void FromJson_RejectsOtherFormatVersion()
     {
         var replay = ReplayRecorder.Record(Spec(3));

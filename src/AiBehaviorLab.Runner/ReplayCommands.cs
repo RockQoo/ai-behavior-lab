@@ -56,11 +56,24 @@ internal static class ReplayCommands
             return 2;
         }
 
-        var replay = ReplayFile.Load(args[0]);
+        ReplayFile replay;
+        try
+        {
+            replay = ReplayFile.Load(args[0]);
+        }
+        catch (Exception e) when (e is InvalidDataException or System.Text.Json.JsonException or IOException)
+        {
+            Console.WriteLine($"잘못된 리플레이: {e.Message}");
+            return 1;
+        }
+
         var result = ReplayVerifier.Verify(replay);
-        Console.WriteLine(result.Matches
-            ? $"일치: 프레임 {result.FramesChecked}개 해시가 모두 같다"
-            : $"갈라짐: 틱 {result.FirstMismatchTick}에서 해시가 다르다(앞의 프레임 {result.FramesChecked}개는 같음)");
+        Console.WriteLine(result switch
+        {
+            { Matches: true } => $"일치: 프레임 {result.FramesChecked}개 해시가 모두 같다",
+            { Problem: { } problem } => $"잘못된 리플레이: {problem}",
+            _ => $"갈라짐: 틱 {result.FirstMismatchTick}에서 해시가 다르다(앞의 프레임 {result.FramesChecked}개는 같음)",
+        });
         return result.Matches ? 0 : 1;
     }
 }

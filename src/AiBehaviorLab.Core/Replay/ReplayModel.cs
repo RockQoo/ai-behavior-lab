@@ -25,10 +25,35 @@ public sealed record ReplayFile(ReplayHeader Header, IReadOnlyList<ReplayFrame> 
     {
         var file = JsonSerializer.Deserialize<ReplayFile>(json, JsonOptions)
                    ?? throw new InvalidDataException("리플레이 파일이 비어 있다");
-        if (file.Header.FormatVersion != CurrentFormatVersion)
-            throw new InvalidDataException(
-                $"리플레이 형식 버전이 다르다: 파일 {file.Header.FormatVersion}, 지원 {CurrentFormatVersion}");
+        file.Validate();
         return file;
+    }
+
+    /// <summary>
+    /// 재생과 검증의 전제를 확인한다: 형식 버전, 빠진 값 없음, 프레임 i의 틱 = i, 마지막 틱 = 머리말의 틱 수.
+    /// 어기면 InvalidDataException.
+    /// </summary>
+    public void Validate()
+    {
+        if (Header is null || Header.Spec is null)
+            throw new InvalidDataException("리플레이 머리말이 없다");
+        if (Header.FormatVersion != CurrentFormatVersion)
+            throw new InvalidDataException(
+                $"리플레이 형식 버전이 다르다: 파일 {Header.FormatVersion}, 지원 {CurrentFormatVersion}");
+        if (Frames is null || Frames.Count == 0)
+            throw new InvalidDataException("리플레이에 프레임이 없다");
+
+        for (int i = 0; i < Frames.Count; i++)
+        {
+            var frame = Frames[i];
+            if (frame is null || frame.Player is null || frame.Boss is null || frame.Events is null || frame.Hash is null)
+                throw new InvalidDataException($"프레임 {i}에 빠진 값이 있다");
+            if (frame.Tick != i)
+                throw new InvalidDataException($"프레임 {i}의 틱이 {frame.Tick}이다(틱이 빠졌거나 순서가 다르다)");
+        }
+
+        if (Frames[^1].Tick != Header.Ticks)
+            throw new InvalidDataException($"마지막 프레임 틱 {Frames[^1].Tick}이 머리말의 틱 수 {Header.Ticks}와 다르다");
     }
 
     public void Save(string path)

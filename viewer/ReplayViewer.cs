@@ -37,7 +37,7 @@ public partial class ReplayViewer : Node2D
     private float _tickAccumulator;
     private int _speedIndex = DefaultSpeedIndex;
 
-    private SpinBox _seedBox = null!;
+    private LineEdit _seedBox = null!;
     private OptionButton _limitsBox = null!;
     private OptionButton _speedBox = null!;
     private Button _playButton = null!;
@@ -65,16 +65,15 @@ public partial class ReplayViewer : Node2D
             }
             else
             {
-                ulong seed = args.TryGetValue("--seed", out var s) && ulong.TryParse(s, out var parsed) ? parsed : 7;
                 string limits = args.GetValueOrDefault("--limits", "casual");
-                _seedBox.Value = seed;
+                _seedBox.Text = args.GetValueOrDefault("--seed", "7");
                 _limitsBox.Selected = limits switch { "none" => 0, "expert" => 2, _ => 1 };
                 Generate();
             }
         }
         catch (System.Exception e)
         {
-            _verifyLabel.Text = $"불러오기 실패: {e.Message}";
+            ShowError($"불러오기 실패: {e.Message}");
         }
 
         if (args.TryGetValue("--frame", out var frameText) && int.TryParse(frameText, out int frame))
@@ -143,25 +142,51 @@ public partial class ReplayViewer : Node2D
 
     private void Generate()
     {
+        // 시드는 러너와 같은 ulong 전체 범위. 위젯 범위로 조용히 바뀌지 않게 글자로 받는다.
+        if (!ulong.TryParse(_seedBox.Text.Trim(), out ulong seed))
+        {
+            ShowError($"시드는 0~{ulong.MaxValue} 사이 정수: \"{_seedBox.Text}\"");
+            return;
+        }
+
         var limits = _limitsBox.Selected switch
         {
             0 => HumanLimits.None,
             2 => HumanLimits.Expert,
             _ => HumanLimits.Casual,
         };
-        var spec = new MatchSpec(ReplayCatalog.RulesV0, (ulong)_seedBox.Value,
+        var spec = new MatchSpec(ReplayCatalog.RulesV0, seed,
             ReplayCatalog.BaselinePlayer, ReplayCatalog.BaselineBoss, limits, HumanLimits.None);
         SetReplay(ReplayRecorder.Record(spec), "이 화면에서 생성");
     }
 
+    /// <summary>읽기와 검사가 모두 끝난 뒤에만 지금 판을 바꾼다. 실패하면 보던 판과 위치가 그대로다.</summary>
     private void LoadFile(string path)
     {
-        SetReplay(ReplayFile.Load(path), $"파일 {System.IO.Path.GetFileName(path)}");
+        ReplayFile replay;
+        try
+        {
+            replay = ReplayFile.Load(path);
+        }
+        catch (System.Exception e)
+        {
+            ShowError($"불러오기 실패: {e.Message}");
+            return;
+        }
+        SetReplay(replay, $"파일 {System.IO.Path.GetFileName(path)}");
+    }
+
+    private void ShowError(string message)
+    {
+        _verifyLabel.Text = message;
+        _verifyLabel.Modulate = new Color(1f, 0.5f, 0.45f);
     }
 
     private void SetReplay(ReplayFile replay, string source)
     {
+        replay.Validate();
         _replay = replay;
+        _verifyLabel.Modulate = Colors.White;
         _source = source;
         _verifyLabel.Text = "";
         _timeline.MaxValue = replay.Frames.Count - 1;
@@ -174,9 +199,12 @@ public partial class ReplayViewer : Node2D
         if (_replay is null)
             return;
         var result = ReplayVerifier.Verify(_replay);
-        _verifyLabel.Text = result.Matches
-            ? $"검증: 일치 (프레임 {result.FramesChecked}개, 이 런타임에서 다시 돌림)"
-            : $"검증: 틱 {result.FirstMismatchTick}에서 갈라짐";
+        _verifyLabel.Text = result switch
+        {
+            { Matches: true } => $"검증: 일치 (프레임 {result.FramesChecked}개, 이 런타임에서 다시 돌림)",
+            { Problem: { } problem } => $"검증: 잘못된 리플레이 ({problem})",
+            _ => $"검증: 틱 {result.FirstMismatchTick}에서 갈라짐",
+        };
         _verifyLabel.Modulate = result.Matches ? new Color(0.6f, 0.95f, 0.6f) : new Color(1f, 0.5f, 0.45f);
     }
 
@@ -436,8 +464,8 @@ public partial class ReplayViewer : Node2D
         layer.AddChild(top);
 
         top.AddChild(new Label { Text = "시드" });
-        _seedBox = new SpinBox { MinValue = 0, MaxValue = 999_999_999, Step = 1, Rounded = true, Value = 7 };
-        _seedBox.CustomMinimumSize = new Vector2(110f, 0f);
+        _seedBox = new LineEdit { Text = "7", CustomMinimumSize = new Vector2(130f, 0f) };
+        _seedBox.TextSubmitted += _ => Generate();
         top.AddChild(_seedBox);
 
         _limitsBox = new OptionButton { FocusMode = Control.FocusModeEnum.None };
@@ -519,17 +547,7 @@ public partial class ReplayViewer : Node2D
             Filters = ["*.json ; 리플레이"],
             UseNativeDialog = true,
         };
-        _fileDialog.FileSelected += path =>
-        {
-            try
-            {
-                LoadFile(path);
-            }
-            catch (System.Exception e)
-            {
-                _verifyLabel.Text = $"불러오기 실패: {e.Message}";
-            }
-        };
+        _fileDialog.FileSelected += LoadFile;
         layer.AddChild(_fileDialog);
     }
 
