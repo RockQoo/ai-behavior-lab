@@ -50,6 +50,8 @@ public sealed record ReplayFile(ReplayHeader Header, IReadOnlyList<ReplayFrame> 
             var frame = Frames[i];
             if (frame is null || frame.Player is null || frame.Boss is null || frame.Events is null || frame.Hash is null)
                 throw new InvalidDataException($"프레임 {i}에 빠진 값이 있다");
+            if (!IsValid(frame.PlayerDecision) || !IsValid(frame.BossDecision))
+                throw new InvalidDataException($"프레임 {i}의 판단 근거에 빠진 값이 있다");
             if (frame.Tick != i)
                 throw new InvalidDataException($"프레임 {i}의 틱이 {frame.Tick}이다(틱이 빠졌거나 순서가 다르다)");
         }
@@ -65,6 +67,10 @@ public sealed record ReplayFile(ReplayHeader Header, IReadOnlyList<ReplayFrame> 
             Directory.CreateDirectory(directory);
         File.WriteAllText(path, ToJson());
     }
+
+    /// <summary>판단 근거는 없어도 되지만, 있으면 상태 이름과 Notes가 있어야 한다.</summary>
+    private static bool IsValid(DecisionTrace? decision) =>
+        decision is null || (decision.State is not null && decision.Notes is not null && decision.Notes.All(n => n is not null));
 
     public static ReplayFile Load(string path) => FromJson(File.ReadAllText(path));
 }

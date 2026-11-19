@@ -182,6 +182,53 @@ public class FsmBrainTests
         Assert.True(ReplayVerifier.Verify(loaded).Matches);
     }
 
+    [Fact]
+    public void Player_DoesNotPunishOutOfRange() // Codex 리뷰 R2
+    {
+        // 보스가 반대쪽(위)을 내려찍고 후딜에 들어간다. 플레이어(아래 2.7m)는 사거리 밖이라 먼저 다가간 뒤에 친다.
+        var rules = MakeRules(player: new Vector2(0f, -2.7f), boss: Vector2.Zero);
+        var sim = StartMatch(rules, new FsmPlayerBrain(), ScriptedBrain.At(0, Intent.Use(ActionId.BossSlam, Up)));
+
+        float? distanceAtSwing = null;
+        for (int i = 0; i < 90 && distanceAtSwing is null; i++)
+        {
+            int before = sim.Events.Count;
+            sim.Step();
+            if (sim.Events.Skip(before).Any(e => e is { Kind: CombatEventKind.ActionStarted, Action: ActionId.LightAttack }))
+                distanceAtSwing = Vector2.Distance(sim.Player.Position, sim.Boss.Position);
+        }
+
+        Assert.NotNull(distanceAtSwing); // 후딜에 반격은 한다
+        Assert.True(distanceAtSwing <= 1.5f + rules.Boss.BodyRadius, $"사거리 밖에서 휘둘렀다: {distanceAtSwing}m");
+        sim.Steps(12); // 선딜 9틱 + 판정
+        Assert.Equal(595, sim.Boss.Hp); // 휘두른 평타는 맞는다
+    }
+
+    [Fact]
+    public void Replay_RejectsDecisionWithoutNotes() // Codex 리뷰 R3
+    {
+        var spec = new MatchSpec(ReplayCatalog.RulesV0, 5, ReplayCatalog.FsmPlayer, ReplayCatalog.FsmBoss,
+            HumanLimits.Casual, HumanLimits.None);
+        string json = ReplayRecorder.Record(spec).ToJson();
+        int notes = json.IndexOf("\"Notes\":[", StringComparison.Ordinal);
+        int end = json.IndexOf(']', notes);
+        string broken = json[..notes] + "\"Notes\":null" + json[(end + 1)..];
+
+        Assert.Throws<InvalidDataException>(() => ReplayFile.FromJson(broken));
+    }
+
+    [Fact]
+    public void Verify_DoesNotCollectDecisions() // Codex 리뷰 R1
+    {
+        var spec = new MatchSpec(ReplayCatalog.RulesV0, 5, ReplayCatalog.FsmPlayer, ReplayCatalog.FsmBoss,
+            HumanLimits.Casual, HumanLimits.None);
+        var simulation = ReplayRecorder.CreateSimulation(spec, ReplayCatalog.CreateRules(spec.RulesName));
+        simulation.Steps(10);
+
+        Assert.Null(simulation.LastPlayerDecision);
+        Assert.Null(simulation.LastBossDecision);
+    }
+
     private sealed class IdleBrainForTest : IBrain
     {
         public string Name => "Idle";

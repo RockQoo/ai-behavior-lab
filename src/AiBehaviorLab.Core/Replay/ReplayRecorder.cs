@@ -9,7 +9,7 @@ public static class ReplayRecorder
     public static ReplayFile Record(MatchSpec spec)
     {
         var rules = ReplayCatalog.CreateRules(spec.RulesName);
-        var simulation = CreateSimulation(spec, rules);
+        var simulation = CreateSimulation(spec, rules, recordDecisions: true);
 
         var frames = new List<ReplayFrame>(rules.TimeLimitTicks + 1) { Capture(simulation, 0, withDecisions: false) };
         while (!simulation.IsOver)
@@ -26,8 +26,8 @@ public static class ReplayRecorder
         return new ReplayFile(header, frames);
     }
 
-    /// <summary>스펙대로 판을 만든다(사건 기록 켬). 검증에서도 같은 방법을 쓴다.</summary>
-    public static CombatSimulation CreateSimulation(MatchSpec spec, CombatRules rules)
+    /// <summary>스펙대로 판을 만든다(사건 기록 켬). 검증에서도 같은 방법을 쓰되 판단 근거는 끈다(해시만 비교하므로).</summary>
+    public static CombatSimulation CreateSimulation(MatchSpec spec, CombatRules rules, bool recordDecisions = false)
     {
         var setup = new MatchSetup(spec.Seed,
             ReplayCatalog.CreateBrain(spec.PlayerBrain), ReplayCatalog.CreateBrain(spec.BossBrain))
@@ -35,7 +35,7 @@ public static class ReplayRecorder
             PlayerLimits = spec.PlayerLimits,
             BossLimits = spec.BossLimits,
             RecordEvents = true,
-            RecordDecisions = true,
+            RecordDecisions = recordDecisions,
         };
         return new CombatSimulation(rules, setup);
     }

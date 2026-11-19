@@ -100,8 +100,10 @@ public sealed class FsmPlayerBrain(FsmPlayerParameters? parameters = null) : IBr
             .On(FsmPlayerState.Regain, FsmPlayerState.Approach, "스태미나 회복", o => o.Self.Stamina >= p.ResumeStamina)
             .On(FsmPlayerState.Approach, FsmPlayerState.Hold, "사거리 도착", _ => _now.Distance <= _now.Reach)
             .On(FsmPlayerState.Hold, FsmPlayerState.Approach, "멀어짐", _ => _now.Distance > _now.Reach + 0.5f)
+            .On(FsmPlayerState.Hold, FsmPlayerState.Approach, "보스 후딜 · 사거리 밖",
+                _ => _now.BossRecovering && _now.Distance > _now.Reach)
             .On(FsmPlayerState.Hold, FsmPlayerState.Punish, "보스 후딜",
-                o => Free(o) && _now.BossRecovering && o.Self.Stamina >= light.StaminaCost)
+                o => Free(o) && _now.BossRecovering && _now.Distance <= _now.Reach && o.Self.Stamina >= light.StaminaCost)
             .On(FsmPlayerState.Punish, FsmPlayerState.Hold, "공격 끝", o => _machine.TicksInState > 0 && Free(o));
     }
 
