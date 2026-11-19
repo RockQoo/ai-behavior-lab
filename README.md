@@ -34,21 +34,26 @@ dotnet run --project src/AiBehaviorLab.Runner -c Release -- --matches 2000 --see
 | `--matches` | 1000 | 판 수 |
 | `--seed` | 1 | 첫 판 시드(판마다 1씩 증가) |
 | `--limits` | casual | 플레이어봇 사람 한계: `none`, `casual`, `expert` |
+| `--player` | baseline | 플레이어 Brain: `baseline`, `fsm` |
+| `--boss` | baseline | 보스 Brain: `baseline`, `fsm` |
 
 ### 리플레이와 관전 화면
 
 Godot 4.7 .NET 버전이 필요하다. `viewer/run.ps1`은 `GODOT` 환경 변수, PATH, winget 설치 위치 순서로 찾는다.
 
 ```powershell
-dotnet run --project src/AiBehaviorLab.Runner -c Release -- replay --seed 7 --limits casual   # replays/seed-7-casual.json
-dotnet run --project src/AiBehaviorLab.Runner -c Release -- verify replays/seed-7-casual.json # 다시 돌려 해시 비교
-.\viewer\run.ps1                                     # 시드 7 판을 화면에서 만들어 재생
-.\viewer\run.ps1 --replay replays\seed-7-casual.json # 파일 재생
+dotnet run --project src/AiBehaviorLab.Runner -c Release -- replay --seed 7 --player fsm --boss fsm --out replays/s7.json
+dotnet run --project src/AiBehaviorLab.Runner -c Release -- verify replays/s7.json   # 다시 돌려 해시 비교
+.\viewer\run.ps1                                  # 시드 7, FSM 대 FSM 판을 화면에서 만들어 재생
+.\viewer\run.ps1 --seed 3 --player baseline --boss fsm
+.\viewer\run.ps1 --replay replays\s7.json         # 파일 재생
 ```
 
 - 리플레이는 **매 틱 상태를 기록**한다. 재생은 그리기만 하므로 결정성이 필요 없다.
 - 프레임마다 상태 해시를 저장한다. "검증"은 같은 시드로 다시 돌려 해시를 비교해서 어디서 갈라지는지 보여 준다.
 - 화면: 노랑 = 예고, 빨강 = 판정, 흰 테두리 = 무적. Space 재생/정지, ←/→ 한 틱, Home 처음, 0.1~4배속.
+- 판단 근거 패널: FSM Brain은 지금 상태, 마지막 전이와 그 이유, 판단에 쓴 값(거리, 보스 행동 등)을 보여 준다.
+  플레이어 쪽 값은 반응 지연이 적용된 "본 것"이라 실제 보스 상태보다 늦을 수 있다.
 
 ## 문서
 

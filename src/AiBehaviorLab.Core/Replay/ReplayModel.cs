@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AiBehaviorLab.Brains;
 using AiBehaviorLab.Rules;
 using AiBehaviorLab.Simulation;
 
@@ -11,7 +12,8 @@ namespace AiBehaviorLab.Replay;
 /// </summary>
 public sealed record ReplayFile(ReplayHeader Header, IReadOnlyList<ReplayFrame> Frames)
 {
-    public const int CurrentFormatVersion = 1;
+    /// <summary>2: 프레임에 판단 근거(PlayerDecision, BossDecision) 추가.</summary>
+    public const int CurrentFormatVersion = 2;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -85,13 +87,18 @@ public sealed record ReplayHeader(
     EndReason Reason,
     int Ticks);
 
-/// <summary>틱 하나가 끝난 뒤의 상태. Tick 0은 시작 상태다. Events는 이 틱에 일어난 사건.</summary>
+/// <summary>
+/// 틱 하나가 끝난 뒤의 상태. Tick 0은 시작 상태다. Events는 이 틱에 일어난 사건.
+/// 판단 근거는 이 프레임으로 오는 틱(Tick - 1)에 Brain이 낸 것이다. 설명하지 않는 Brain이면 null.
+/// </summary>
 public sealed record ReplayFrame(
     int Tick,
     BodyFrame Player,
     BodyFrame Boss,
     IReadOnlyList<EventFrame> Events,
-    string Hash);
+    string Hash,
+    DecisionTrace? PlayerDecision = null,
+    DecisionTrace? BossDecision = null);
 
 public sealed record BodyFrame(
     float X,

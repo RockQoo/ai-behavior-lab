@@ -11,6 +11,9 @@ public sealed record MatchSetup(ulong Seed, IBrain PlayerBrain, IBrain BossBrain
 
     /// <summary>사건 기록을 남길지. 대량 실행에서는 끈다.</summary>
     public bool RecordEvents { get; init; }
+
+    /// <summary>Brain의 판단 근거(IExplainableBrain)를 매 틱 받아 둘지. 리플레이 기록할 때만 켠다.</summary>
+    public bool RecordDecisions { get; init; }
 }
 
 public enum EndReason

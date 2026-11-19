@@ -6,44 +6,24 @@ internal static class ReplayCommands
 {
     public static int Record(string[] args)
     {
-        ulong seed = 1;
-        string limitsName = "casual";
-        string? output = null;
-
-        for (int i = 0; i + 1 < args.Length; i += 2)
+        if (!RunnerOptions.TryParse(args, out var options, out string? error))
         {
-            switch (args[i])
-            {
-                case "--seed" when ulong.TryParse(args[i + 1], out ulong s):
-                    seed = s;
-                    break;
-                case "--limits" when RunnerOptions.LimitsByName(args[i + 1]) is not null:
-                    limitsName = args[i + 1];
-                    break;
-                case "--out":
-                    output = args[i + 1];
-                    break;
-                default:
-                    Console.Error.WriteLine($"알 수 없는 옵션이거나 값이 잘못됐다: {args[i]} {args[i + 1]}");
-                    return 2;
-            }
-        }
-        if (args.Length % 2 != 0)
-        {
-            Console.Error.WriteLine($"{args[^1]} 뒤에 값이 없다");
+            Console.Error.WriteLine(error);
             return 2;
         }
 
-        output ??= Path.Combine("replays", $"seed-{seed}-{limitsName}.json");
-        var spec = new MatchSpec(ReplayCatalog.RulesV0, seed, ReplayCatalog.BaselinePlayer, ReplayCatalog.BaselineBoss,
-            RunnerOptions.LimitsByName(limitsName)!, HumanLimits.None);
+        ulong seed = options.Seed;
+        string output = options.Output
+            ?? Path.Combine("replays", $"seed-{seed}-{options.LimitsName}-{options.PlayerBrain}-vs-{options.BossBrain}.json");
+        var spec = new MatchSpec(ReplayCatalog.RulesV0, seed, options.PlayerBrain, options.BossBrain,
+            options.Limits, HumanLimits.None);
 
         var replay = ReplayRecorder.Record(spec);
         replay.Save(output);
 
         var header = replay.Header;
         Console.WriteLine($"리플레이 저장: {Path.GetFullPath(output)}");
-        Console.WriteLine($"  시드 {seed}, 사람 한계 {limitsName}, {header.Winner} 승({header.Reason}), " +
+        Console.WriteLine($"  시드 {seed}, 사람 한계 {options.LimitsName}, {header.Winner} 승({header.Reason}), " +
                           $"{header.Ticks}틱 = {(double)header.Ticks / header.TickRate:F1}초, 프레임 {replay.Frames.Count}");
         return 0;
     }

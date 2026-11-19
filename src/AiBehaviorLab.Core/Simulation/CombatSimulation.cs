@@ -71,6 +71,11 @@ public sealed class CombatSimulation
     public CombatStats PlayerStatistics => _player.Statistics;
     public CombatStats BossStatistics => _boss.Statistics;
 
+    /// <summary>마지막 Step에서 플레이어 Brain이 낸 판단 근거(RecordDecisions일 때, 설명 가능한 Brain만).</summary>
+    public DecisionTrace? LastPlayerDecision { get; private set; }
+
+    public DecisionTrace? LastBossDecision { get; private set; }
+
     public IReadOnlyList<CombatEvent> Events => _events ?? (IReadOnlyList<CombatEvent>)Array.Empty<CombatEvent>();
 
     /// <summary>
@@ -103,6 +108,11 @@ public sealed class CombatSimulation
             new Observation(Tick, Rules, _player.ToView(), _playerEyes.Perceive()));
         var bossIntent = _setup.BossBrain.Decide(
             new Observation(Tick, Rules, _boss.ToView(), _bossEyes.Perceive()));
+        if (_setup.RecordDecisions)
+        {
+            LastPlayerDecision = (_setup.PlayerBrain as IExplainableBrain)?.Explain();
+            LastBossDecision = (_setup.BossBrain as IExplainableBrain)?.Explain();
+        }
 
         // 2. 의도 적용(행동 시작, 이동).
         ApplyIntent(_player, playerIntent, _playerHands, _setup.PlayerLimits.MistakeChance);

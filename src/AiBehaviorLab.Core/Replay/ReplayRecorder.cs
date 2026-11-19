@@ -11,12 +11,12 @@ public static class ReplayRecorder
         var rules = ReplayCatalog.CreateRules(spec.RulesName);
         var simulation = CreateSimulation(spec, rules);
 
-        var frames = new List<ReplayFrame>(rules.TimeLimitTicks + 1) { Capture(simulation, 0) };
+        var frames = new List<ReplayFrame>(rules.TimeLimitTicks + 1) { Capture(simulation, 0, withDecisions: false) };
         while (!simulation.IsOver)
         {
             int eventStart = simulation.Events.Count;
             simulation.Step();
-            frames.Add(Capture(simulation, eventStart));
+            frames.Add(Capture(simulation, eventStart, withDecisions: true));
         }
 
         var result = simulation.Result!;
@@ -35,13 +35,14 @@ public static class ReplayRecorder
             PlayerLimits = spec.PlayerLimits,
             BossLimits = spec.BossLimits,
             RecordEvents = true,
+            RecordDecisions = true,
         };
         return new CombatSimulation(rules, setup);
     }
 
     public static string FormatHash(ulong hash) => hash.ToString("x16");
 
-    private static ReplayFrame Capture(CombatSimulation simulation, int eventStart)
+    private static ReplayFrame Capture(CombatSimulation simulation, int eventStart, bool withDecisions)
     {
         var events = new List<EventFrame>();
         for (int i = eventStart; i < simulation.Events.Count; i++)
@@ -55,7 +56,9 @@ public static class ReplayRecorder
             Body(simulation.Rules, simulation.Player),
             Body(simulation.Rules, simulation.Boss),
             events,
-            FormatHash(simulation.ComputeStateHash()));
+            FormatHash(simulation.ComputeStateHash()),
+            withDecisions ? simulation.LastPlayerDecision : null,
+            withDecisions ? simulation.LastBossDecision : null);
     }
 
     private static BodyFrame Body(CombatRules rules, CombatantView view)

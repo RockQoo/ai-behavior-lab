@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using AiBehaviorLab.Brains;
 using AiBehaviorLab.Replay;
 using AiBehaviorLab.Rules;
 using AiBehaviorLab.Simulation;
@@ -39,6 +40,8 @@ public partial class ReplayViewer : Node2D
 
     private LineEdit _seedBox = null!;
     private OptionButton _limitsBox = null!;
+    private OptionButton _playerBrainBox = null!;
+    private OptionButton _bossBrainBox = null!;
     private OptionButton _speedBox = null!;
     private Button _playButton = null!;
     private HSlider _timeline = null!;
@@ -68,6 +71,8 @@ public partial class ReplayViewer : Node2D
                 string limits = args.GetValueOrDefault("--limits", "casual");
                 _seedBox.Text = args.GetValueOrDefault("--seed", "7");
                 _limitsBox.Selected = limits switch { "none" => 0, "expert" => 2, _ => 1 };
+                _playerBrainBox.Selected = System.Array.IndexOf(BrainKinds, args.GetValueOrDefault("--player", "fsm")) is var p and >= 0 ? p : 1;
+                _bossBrainBox.Selected = System.Array.IndexOf(BrainKinds, args.GetValueOrDefault("--boss", "fsm")) is var b and >= 0 ? b : 1;
                 Generate();
             }
         }
@@ -156,7 +161,9 @@ public partial class ReplayViewer : Node2D
             _ => HumanLimits.Casual,
         };
         var spec = new MatchSpec(ReplayCatalog.RulesV0, seed,
-            ReplayCatalog.BaselinePlayer, ReplayCatalog.BaselineBoss, limits, HumanLimits.None);
+            ReplayCatalog.PlayerBrainByKind(BrainKinds[_playerBrainBox.Selected])!,
+            ReplayCatalog.BossBrainByKind(BrainKinds[_bossBrainBox.Selected])!,
+            limits, HumanLimits.None);
         SetReplay(ReplayRecorder.Record(spec), "이 화면에서 생성");
     }
 
@@ -408,13 +415,29 @@ public partial class ReplayViewer : Node2D
         AppendBody(text, "플레이어", "#5594f5", frame.Player, showStamina: true);
         text.AppendLine();
         text.AppendLine("[b]판단 근거[/b]");
-        text.AppendLine("[color=#8a8f98]  기준선 Brain은 점수를 내지 않는다. FSM Brain부터 표시[/color]");
+        AppendDecision(text, "보스", "#e05a4d", frame.BossDecision, spec.BossBrain);
+        AppendDecision(text, "플레이어", "#5594f5", frame.PlayerDecision, spec.PlayerBrain);
         text.AppendLine();
         text.AppendLine("[b]최근 사건[/b]");
-        foreach (var line in RecentEvents(8))
+        foreach (var line in RecentEvents(5))
             text.AppendLine("  " + line);
 
         _panel.Text = text.ToString();
+    }
+
+    private static void AppendDecision(StringBuilder text, string name, string color, DecisionTrace? decision, string brain)
+    {
+        if (decision is null)
+        {
+            text.AppendLine($"[color={color}]{name}[/color] [color=#8a8f98]{Names.Brain(brain)}: 판단 근거를 내지 않음[/color]");
+            return;
+        }
+
+        text.AppendLine($"[color={color}]{name}[/color] [b]{decision.State}[/b] [color=#8a8f98]{decision.TicksInState}틱째[/color]");
+        if (decision.LastTransition is { } transition)
+            text.AppendLine($"  [color=#f0c74a]↳ {transition}[/color]");
+        foreach (var note in decision.Notes)
+            text.AppendLine($"  [color=#aab0ba]· {note}[/color]");
     }
 
     private static void AppendBody(StringBuilder text, string name, string color, BodyFrame body, bool showStamina)
@@ -475,24 +498,36 @@ public partial class ReplayViewer : Node2D
         _limitsBox.Selected = 1;
         top.AddChild(_limitsBox);
 
-        top.AddChild(MakeButton("새 판", Generate));
-        top.AddChild(MakeButton("파일 열기", () => _fileDialog.PopupCentered(new Vector2I(800, 500))));
-        top.AddChild(MakeButton("검증", Verify));
+        // 둘째 줄: Brain 고르기와 버튼
+        var second = new HBoxContainer { Position = new Vector2(730f, 46f) };
+        second.AddThemeConstantOverride("separation", 6);
+        layer.AddChild(second);
 
-        _verifyLabel = new Label { Position = new Vector2(732f, 50f) };
+        second.AddChild(new Label { Text = "플레이어" });
+        _playerBrainBox = MakeBrainBox();
+        second.AddChild(_playerBrainBox);
+        second.AddChild(new Label { Text = "보스" });
+        _bossBrainBox = MakeBrainBox();
+        second.AddChild(_bossBrainBox);
+
+        second.AddChild(MakeButton("새 판", Generate));
+        second.AddChild(MakeButton("파일 열기", () => _fileDialog.PopupCentered(new Vector2I(800, 500))));
+        second.AddChild(MakeButton("검증", Verify));
+
+        _verifyLabel = new Label { Position = new Vector2(732f, 82f) };
         layer.AddChild(_verifyLabel);
 
         // 오른쪽: 상태 패널
-        var panelBox = new PanelContainer { Position = new Vector2(730f, 80f), CustomMinimumSize = new Vector2(530f, 580f) };
+        var panelBox = new PanelContainer { Position = new Vector2(730f, 108f), CustomMinimumSize = new Vector2(530f, 538f) };
         layer.AddChild(panelBox);
         _panel = new RichTextLabel
         {
             BbcodeEnabled = true,
             ScrollActive = false,
-            CustomMinimumSize = new Vector2(510f, 560f),
+            CustomMinimumSize = new Vector2(510f, 518f),
         };
-        _panel.AddThemeFontSizeOverride("normal_font_size", 15);
-        _panel.AddThemeFontSizeOverride("bold_font_size", 15);
+        _panel.AddThemeFontSizeOverride("normal_font_size", 14);
+        _panel.AddThemeFontSizeOverride("bold_font_size", 14);
         var margin = new MarginContainer();
         foreach (var side in new[] { "left", "right", "top", "bottom" })
             margin.AddThemeConstantOverride($"margin_{side}", 10);
@@ -549,6 +584,18 @@ public partial class ReplayViewer : Node2D
         };
         _fileDialog.FileSelected += LoadFile;
         layer.AddChild(_fileDialog);
+    }
+
+    private static readonly string[] BrainKinds = ["baseline", "fsm"];
+
+    /// <summary>Brain 종류 선택. 순서는 BrainKinds와 같다. 기본은 FSM.</summary>
+    private static OptionButton MakeBrainBox()
+    {
+        var box = new OptionButton { FocusMode = Control.FocusModeEnum.None };
+        box.AddItem("기준선");
+        box.AddItem("FSM");
+        box.Selected = 1;
+        return box;
     }
 
     private static Button MakeButton(string text, System.Action onPressed)

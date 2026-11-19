@@ -6,22 +6,7 @@ namespace AiBehaviorLab.Viewer;
 /// <summary>화면에 보이는 한국어 이름.</summary>
 public static class Names
 {
-    public static string Of(ActionId id) => id switch
-    {
-        ActionId.LightAttack => "평타",
-        ActionId.HeavyAttack => "강공격",
-        ActionId.Roll => "구르기",
-        ActionId.Potion => "회복약",
-        ActionId.BossSlam => "내려찍기",
-        ActionId.BossSweep => "휩쓸기",
-        ActionId.BossCharge => "돌진",
-        ActionId.BossShockwave => "충격파",
-        ActionId.BossSlamDelayed => "지연 내려찍기",
-        ActionId.BossSweepDouble => "2연타 휩쓸기",
-        ActionId.BossChargeShort => "짧은 돌진",
-        ActionId.BossShockwaveRing => "고리 충격파",
-        _ => id.ToString(),
-    };
+    public static string Of(ActionId id) => ActionNames.Korean(id);
 
     public static string Of(ActionPhase phase) => phase switch
     {
@@ -45,6 +30,8 @@ public static class Names
     {
         "baseline-player" => "기준선 플레이어",
         "baseline-boss" => "기준선 보스",
+        "fsm-player" => "FSM 플레이어",
+        "fsm-boss" => "FSM 보스",
         "idle" => "가만히",
         _ => name,
     };

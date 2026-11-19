@@ -18,6 +18,7 @@
 - 시간은 내부에서 **틱**(정수)으로 다룬다. 초 단위 값은 `CombatRules.ToTicks`로 바꾼다.
 - Brain은 `Observation`만 보고 `Intent`만 낸다. 시뮬레이션 상태를 직접 읽거나 바꾸지 않는다.
 - 예고 범위 = 판정 범위. 조준은 단계의 선딜 시작 때 고정한다(공정성).
+- 새 Brain이 판단 근거를 보여 주려면 `IExplainableBrain`을 구현한다. 문턱값·가중치는 `*Parameters` 레코드로 빼서 진화 대상이 되게 한다.
 - 리플레이는 상태 기록 방식이다(`Replay/`). 형식을 바꾸면 `ReplayFile.CurrentFormatVersion`을 올린다. 새 Brain은 `ReplayCatalog`에 이름으로 등록해야 리플레이 검증이 된다.
 - 관전 화면(`viewer/`)은 그리기만 한다. 규칙 계산은 Core에서 하고, 화면용 값(범위 모양 등)은 리플레이 프레임에 담는다. 관전·디버그 도형은 코드로 그려도 된다.
 - 주석과 문서는 한국어.

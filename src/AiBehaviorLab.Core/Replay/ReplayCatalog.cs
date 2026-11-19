@@ -1,5 +1,6 @@
 using AiBehaviorLab.Brains;
 using AiBehaviorLab.Brains.Baseline;
+using AiBehaviorLab.Brains.Fsm;
 using AiBehaviorLab.Rules;
 
 namespace AiBehaviorLab.Replay;
@@ -10,13 +11,32 @@ public static class ReplayCatalog
     public const string RulesV0 = "v0";
     public const string BaselinePlayer = "baseline-player";
     public const string BaselineBoss = "baseline-boss";
+    public const string FsmPlayer = "fsm-player";
+    public const string FsmBoss = "fsm-boss";
     public const string Idle = "idle";
 
     private static readonly Dictionary<string, Func<IBrain>> Brains = new()
     {
         [BaselinePlayer] = () => new BaselinePlayerBrain(),
         [BaselineBoss] = () => new BaselineBossBrain(),
+        [FsmPlayer] = () => new FsmPlayerBrain(),
+        [FsmBoss] = () => new FsmBossBrain(),
         [Idle] = () => new IdleBrain(),
+    };
+
+    /// <summary>러너·화면의 짧은 이름(baseline, fsm)을 등록 이름으로. 모르면 null.</summary>
+    public static string? PlayerBrainByKind(string kind) => kind switch
+    {
+        "baseline" => BaselinePlayer,
+        "fsm" => FsmPlayer,
+        _ => null,
+    };
+
+    public static string? BossBrainByKind(string kind) => kind switch
+    {
+        "baseline" => BaselineBoss,
+        "fsm" => FsmBoss,
+        _ => null,
     };
 
     public static IReadOnlyCollection<string> BrainNames => Brains.Keys;

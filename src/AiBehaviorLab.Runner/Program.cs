@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Text;
-using AiBehaviorLab.Brains.Baseline;
+using AiBehaviorLab.Replay;
 using AiBehaviorLab.Rules;
 using AiBehaviorLab.Simulation;
 
@@ -14,8 +14,8 @@ if (args.Length > 0 && args[0] == "verify")
 if (!RunnerOptions.TryParse(args, out var options, out string? error))
 {
     Console.Error.WriteLine(error);
-    Console.Error.WriteLine("사용법: --matches <판 수> --seed <시드> --limits none|casual|expert");
-    Console.Error.WriteLine("        replay --seed <시드> --limits <한계> [--out <파일>]");
+    Console.Error.WriteLine("사용법: --matches <판 수> --seed <시드> --limits none|casual|expert --player baseline|fsm --boss baseline|fsm");
+    Console.Error.WriteLine("        replay --seed <시드> --limits <한계> --player <종류> --boss <종류> [--out <파일>]");
     Console.Error.WriteLine("        verify <리플레이 파일>");
     return 2;
 }
@@ -24,7 +24,7 @@ var rules = DefaultRules.V0();
 
 MatchResult RunOne(ulong seed, bool recordEvents)
 {
-    var setup = new MatchSetup(seed, new BaselinePlayerBrain(), new BaselineBossBrain())
+    var setup = new MatchSetup(seed, ReplayCatalog.CreateBrain(options.PlayerBrain), ReplayCatalog.CreateBrain(options.BossBrain))
     {
         PlayerLimits = options.Limits,
         RecordEvents = recordEvents,
@@ -75,7 +75,7 @@ long totalTicks = results.Sum(r => (long)r.Ticks);
 int playerWins = results.Count(r => r.Winner == Side.Player);
 double seconds = stopwatch.Elapsed.TotalSeconds;
 
-Console.WriteLine("ai-behavior-lab 러너 (기준선 플레이어 vs 기준선 보스)");
+Console.WriteLine($"ai-behavior-lab 러너 ({options.PlayerBrain} vs {options.BossBrain})");
 Console.WriteLine($"판 수 {options.Matches}, 시드 {options.Seed}~, 사람 한계 {options.LimitsName}");
 Console.WriteLine();
 Console.WriteLine($"플레이어 승률      {Percent(playerWins, options.Matches)}");
@@ -113,6 +113,12 @@ static string ReasonName(EndReason reason) => reason switch
 
 internal sealed record RunnerOptions(int Matches, ulong Seed, HumanLimits Limits, string LimitsName)
 {
+    public string PlayerBrain { get; init; } = ReplayCatalog.BaselinePlayer;
+    public string BossBrain { get; init; } = ReplayCatalog.BaselineBoss;
+
+    /// <summary>replay 명령의 저장 경로. 일반 실행에서는 쓰지 않는다.</summary>
+    public string? Output { get; init; }
+
     public static bool TryParse(string[] args, out RunnerOptions options, out string? error)
     {
         options = new RunnerOptions(1000, 1, HumanLimits.Casual, "casual");
@@ -138,6 +144,15 @@ internal sealed record RunnerOptions(int Matches, ulong Seed, HumanLimits Limits
                     break;
                 case "--limits" when LimitsByName(value) is { } limits:
                     options = options with { Limits = limits, LimitsName = value };
+                    break;
+                case "--player" when ReplayCatalog.PlayerBrainByKind(value) is { } player:
+                    options = options with { PlayerBrain = player };
+                    break;
+                case "--boss" when ReplayCatalog.BossBrainByKind(value) is { } boss:
+                    options = options with { BossBrain = boss };
+                    break;
+                case "--out":
+                    options = options with { Output = value };
                     break;
                 default:
                     error = $"알 수 없는 옵션이거나 값이 잘못됐다: {name} {value}";
